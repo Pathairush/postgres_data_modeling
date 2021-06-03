@@ -1,0 +1,55 @@
+version: '3.7'
+services:
+    postgres:
+        image: postgres:9.6
+        container_name: postgres-airflow
+        environment:
+            - POSTGRES_USER=airflow
+            - POSTGRES_PASSWORD=airflow
+            - POSTGRES_DB=airflow
+        logging:
+            options:
+                max-size: 10m
+                max-file: "3"
+    webserver:
+        container_name: airflow
+        image: ppatcoding/modified_puckel_airflow:latest
+        restart: always
+        privileged: true
+        depends_on:
+            - postgres
+        environment:
+            - LOAD_EX=n
+            - EXECUTOR=Local
+            - AIRFLOW_CONN_POSTGRES_DB=postgres://postgres:passw0rd@database:5432/temp_db
+            - AIRFLOW_CONN_SPARK=spark://spark-master:7077
+        logging:
+            options:
+                max-size: 10m
+                max-file: "3"
+        volumes:
+            - ${PWD}/airflow/dags:/usr/local/airflow/dags
+            - ${PWD}/airflow/plugins:/usr/local/airflow/plugins
+            - ${PWD}/airflow/scripts:/usr/local/airflow/scripts
+            - /var/run/docker.sock:/var/run/docker.sock
+        ports:
+            - "8080:8080"
+        command: webserver
+        healthcheck:
+            test: ["CMD-SHELL", "[ -f /usr/local/airflow/airflow-webserver.pid ]"]
+            interval: 30s
+            timeout: 30s
+            retries: 3
+    database:
+          image: postgres:9.6
+          container_name: postgres-db
+          environment:
+            - POSTGRES_DB=temp_db
+            - POSTGRES_PASSWORD=passw0rd
+            - PGDATA=/var/lib/postgresql/data/pgdata
+          volumes:
+            - ${PWD}/data:/var/lib/postgresql/data/project
+          logging:
+              options:
+                max-size: 10m
+                max-file: "3"
